@@ -1,0 +1,930 @@
+```{r}
+install.packages("boot",dep=TRUE)
+install.packages("ggplot2")
+install.packages("pryr")
+install.packages("devtools")
+devtools::install_github("hadley/lineprof")
+```
+
+```{r}
+install.packages("pryr")
+```
+
+```{r}
+library(pryr)
+```
+
+
+```{r}
+write.csv(df, 'myDF.csv')
+```
+
+```{r}
+install.packages("tidyverse")
+
+```
+
+
+```{r}
+
+library(tidyverse)
+```
+
+```{r}
+options(max.print=10000000)
+```
+
+read in raw data, Null_Touches.csv
+
+```{r}
+library(boot)
+nullTouches <- read.csv("/Users/matt/ProjectRStuff/Null_Touches.csv")
+```
+
+we also need to read in our analysis csv, or else we would have to recompute number of commits that introduce nullcheckers.
+
+```{r}
+commitData <- read.csv("/Users/matt/eclipse-workspace/Commits_Null.csv")
+```
+
+```{r}
+head(commitData)
+```
+
+```{r}
+head(nullTouches)
+```
+
+Make list of repo names.  We will do analysis for each repo.
+
+```{r}
+repos <- unique(nullTouches$Repo)
+```
+
+Filter "repos" if there are not > 25 yesChecker commits
+```{r}
+
+repos
+```
+
+
+```{r}
+reposFiltered <- commitData[commitData$Commits_Checkers > 25, ]
+
+#reposFiltered
+
+repos <- reposFiltered$Project
+repos
+length(repos)
+
+```
+
+```{r}
+head(reposFiltered)
+```
+
+```{r}
+
+```
+
+We want to start making vectors of data that is of interest.  Our goal for this script will be to produce a csv file.
+
+
+
+```{r}
+commitsNullChecker <- (reposFiltered$Commits_Checkers)
+```
+
+```{r}
+commitsNullChecker
+
+```
+
+```{r}
+
+LOC_NChecker_Commits <- (reposFiltered$LOC_Checkers)
+```
+
+```{r}
+Authors_NChecker_Commits <- (reposFiltered$Authors.Yes.Checker)
+
+```  
+  
+```{r}
+
+Committers_NChecker_Commits <- (reposFiltered$Committer.Yes.Checker)
+```
+  
+```{r}
+df <-cbind(df, Authors_NChecker_Commits)
+
+```
+  
+```{r}
+df <- cbind(df, totalCommits)
+```
+
+
+```{r}
+df <- cbind(df, Authors_NChecker_Commits)
+```
+
+```{r}
+
+how_Many_Nullcheckers <- (reposFiltered$How.Many.Nullchekcers)
+```
+
+```{r}
+how_Many_Nullcheckers
+```
+
+```{r}
+write.csv(df, 'myDF.csv')
+```
+
+```{r}
+
+df = data.frame(repos, how_Many_Nullcheckers, commitsNullChecker)
+write.csv(df, 'myDF.csv')
+nrow(df)
+```
+
+```{r}
+numCommits <- function(data){
+  return(nrow(data))
+}
+```
+
+```{r}
+numCommits
+
+```
+define some functions to return bootstrap statistics as desired
+
+
+```{r}
+
+function_filesTouched_multiCommit <- function(data, index, numCommits){
+  sum = 0
+    subset <- data[sample(nrow(data), numCommits, replace = TRUE),]
+    subList <- (subset$NumFiles)
+    for (i in 1:numCommits){
+      sum = sum + subList[[i]]
+    }
+    rm(subset)
+    rm(subList)
+    rm(data)
+    #print("getting boot data")
+    #gc()
+  return(sum)
+}
+```
+
+replace logic from Files_Touched for LOC
+
+```{r}
+function_LOC_multiCommit <- function(data, index, numCommits){
+  sum = 0
+    subset <- data[sample(nrow(data), numCommits, replace = TRUE),]
+    subList <- (subset$Lines.of.Code.Added.or.Removed)
+    for (i in 1:numCommits){
+      sum = sum + subList[[i]]
+    }
+    rm(subset)
+    rm(subList)
+    rm(data)
+    #print("getting boot data")
+    #gc()
+  return(sum)
+}
+
+```
+
+multiCommit Author Counter function
+
+```{r}
+
+function_Authors_multiCommit <- function(data, index, numCommits){
+  sum = 0
+    subset <- data[sample(nrow(data), numCommits, replace = TRUE),]
+    
+    subList <- unique(subset$Author.Name)
+    #for (i in 1:numCommits){
+    #  sum = sum + subList[[i]]
+   # }
+    sum = length(subList)
+    rm(subset)
+    rm(subList)
+    rm(data)
+    #print("getting boot data")
+    #gc()
+  return(sum)
+}
+
+
+```
+
+committers multiCommit
+```{r}
+function_Committers_multiCommit <- function(data, index, numCommits){
+  sum = 0
+    subset <- data[sample(nrow(data), numCommits, replace = TRUE),]
+    
+    subList <- unique(subset$Comitter.Name)
+    #for (i in 1:numCommits){
+    #  sum = sum + subList[[i]]
+   # }
+    sum = length(subList)
+    rm(subset)
+    rm(subList)
+    rm(data)
+    #print("getting boot data")
+    #gc()
+  return(sum)
+}
+
+
+```
+
+
+We need a function that will get number of files affected by commits that add null checkers.
+
+```{r}
+function_numFiles <- function(data){
+  sum = 0
+  subset <- data[data$NullCheckers. == "Yes",]
+  #length(subset)
+  subList <- (subset$NumFiles)
+  for (i in 1: length(subList)){
+    sum = sum + subList[[i]]
+  }
+  print("computing files")
+  rm(subset)
+  rm(subList)
+  rm(data)
+  gc()
+  return(sum)
+}
+
+```
+
+
+```{r}
+function_LOC <- function(data){
+  sum = 0
+  subset <- data[data$NullCheckers. == "Yes",]
+  #length(subset)
+  subList <- (subset$Lines.of.Code.Added.or.Removed)
+  for (i in 1: length(subList)){
+    sum = sum + subList[[i]]
+  }
+  print("computing LOC")
+  rm(subset)
+  rm(subList)
+  rm(data)
+  gc()
+  return(sum)
+}
+
+
+```
+
+We have the unique repo names (repos) and how many commits for each one added null checkers (commitCheckerNums).  The next step is to take a subset of our data for one repo.
+
+```{r}
+
+totalCommits <- vector()
+commitsIntroduceNull <- vector()
+files_Touched_NChecker_Commits <- vector()
+bsFileMedians <- vector()
+
+filePVals <- vector()
+
+```
+
+```{r}
+totalCommits
+```
+get authors for NCheckers from nulltouches
+```{r}
+Authors_NChecker_Commits <- vector()
+for (i in 1:length(repos)){
+  repoName <- repos[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "Yes",]
+  #Authors_NChecker_Commits <- append(Authors_NChecker_Commits, )
+  subList <- unique(dataSubSet$Author.Name)
+    #for (i in 1:numCommits){
+    #  sum = sum + subList[[i]]
+   # }
+    sum = length(subList)
+    Authors_NChecker_Commits <- append(Authors_NChecker_Commits, sum)
+    rm(dataSubSet)
+    rm(subList)
+    gc()
+  
+}
+length(Authors_NChecker_Commits)
+
+```
+get committers for NChecker commits from Nulltouches
+```{r}
+Committers_NChecker_Commits <- vector()
+for (i in 1:length(repos)){
+  repoName <- repos[[i]]
+  print(repoName)
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "Yes",]
+  #Authors_NChecker_Commits <- append(Authors_NChecker_Commits, )
+  subList <- unique(dataSubSet$Comitter.Name)
+    #for (i in 1:numCommits){
+    #  sum = sum + subList[[i]]
+   # }
+    sum = length(subList)
+    print(sum)
+    Committers_NChecker_Commits <- append(Committers_NChecker_Commits, sum)
+    rm(dataSubSet)
+    rm(subList)
+    gc()
+  
+}
+length(Committers_NChecker_Commits)
+```
+
+```{r}
+
+for (i in 1:length(repos)){
+  repoName <- repos[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  totalCommits <- append(totalCommits, numCommits(dataSubSet))
+  rm(dataSubSet)
+  #rm(totalCommits)
+  gc()
+}
+```
+
+
+Adding to dataframe, printing csv
+```{r}
+
+df <-cbind(df, totalCommits)
+
+
+```
+
+```{r}
+df <- cbind(df, Committers_NChecker_Commits)
+```
+
+```{r}
+write.csv(df, 'myDF.csv')
+```
+
+```{r}
+  
+for (i in 1:length(repos)){
+  repoName <- repos[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  filesActual <- function_numFiles(dataSubSet)
+  files_Touched_NChecker_Commits <- append(files_Touched_NChecker_Commits, filesActual)
+  rm(dataSubSet)
+  rm(filesActual)
+  gc()
+}
+```
+
+```{r}
+length(files_Touched_NChecker_Commits)
+
+
+```
+
+
+```{r}
+df <-cbind(df, files_Touched_NChecker_Commits)
+write.csv(df, 'myDF.csv')
+
+```
+
+
+```{r}
+df <- cbind(df, meanBootstrappedFiles)
+
+```
+
+```{r}
+df <- cbind(df, pValFilesActual)
+
+```
+
+```{r}
+
+df <- cbind(df, LOC_NChecker_Commits)
+```
+
+```{r}
+write.csv(df, 'myDF.csv')
+
+```
+
+```{r}
+meanBootstrappedFiles <- vector()
+pValFilesActual <- vector()
+
+
+```
+
+```{r}
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  filesActual <- function_numFiles(dataSubSet)
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_filesTouched_multiCommit, R=100000, numCommits=checkerNums)
+  s1 <- "Filesmodifiedper"
+  s2 <- toString(checkerNums)
+  s3 <- "commits"
+  s4 <- paste(s1, s2, s3, sep="")
+  #str_remove(s4, "/")
+  #s5 <- "Median: "
+  s5 <- ".jpeg"
+  s6 <- paste(repoName, s4, s5, sep="")
+  
+  s6 <- str_replace_all(s6, "([a-zA-Z])/([a-zA-Z])", "\\1\\2")
+  s7 <- "jPegs/"
+  s8 <- 
+  print(s6)
+  jpeg(file=s6)
+  
+  list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+     main=repoName, xlab = s4)
+  dev.off()
+  argmax <- which.max(list_histo$counts)
+  center <- list_histo$mids[[argmax]]
+  
+  print("Mean")
+  mean <- mean(bootcorr$t)
+  print(mean)
+  meanBootstrappedFiles <- append(meanBootstrappedFiles, mean)
+  print("filesActual")
+  print(filesActual)
+  
+  P = ecdf(bootcorr$t)
+  if (filesActual > center){
+    pVal <- 1 - P(filesActual)
+  } else {
+    pVal <- P(filesActual)
+  }
+  pValFilesActual <- append(pValFilesActual, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(filesActual)
+  rm(list_histo)
+  rm(P)
+  gc()
+  
+}
+
+```
+
+```{r}
+
+df <-cbind(df, meanBootstrappedFiles)
+df <- cbind(df, pValFilesActual)
+write.csv(df, 'myDF.csv')
+
+```
+
+Replicate bootstrapping for LOC
+
+```{r}
+
+meanBootstrappedLOC <- vector()
+pVal_LOC_Actual <- vector()
+```
+
+LOCs!!
+
+```{r}
+df <- cbind(df, meanBootstrappedLOC)
+```
+
+```{r}
+df <- cbind(df, pVal_LOC_Actual)
+
+```
+
+```{r}
+
+df <- cbind(df, meanBootstrappedAuthors)
+#df <- cbind(df, pVal_Authors_Actual)
+#meanBootstrappedAuthors <- vector()
+#pVal_Authors_Actual <- vector()
+
+```
+
+```{r}
+df <- cbind(df, pVal_Authors_Actual)
+
+```
+
+```{r}
+df <- cbind(df, Committers_NChecker_Commits)
+```
+
+```{r}
+df <- cbind(df, meanBootstrappedCommitters)
+
+```
+
+```{r}
+df <- cbind(df, pVal_Committers_Actual)
+```
+```{r}
+df <- cbind(df, p_values_unadjusted)
+```
+
+```{r}
+df <- cbind(df, p_values_LOC_unadjusted)
+```
+
+```{r}
+
+df <- cbind(df, p_values_Files_unadjusted)
+```
+
+
+```{r}
+df <- cbind(df, Files_BH_adjusted_pvalues)
+
+```
+
+```{r}
+df <- cbind(df, LOC_NChecker_Commits)
+```
+
+```{r}
+df <- cbind(df, LOC_BH_adjusted_pvalues)
+```
+
+```{r}
+df <- cbind(df, p_values_Authors_unadjusted)
+```
+
+```{r}
+df <- cbind(df, Authors_BH_adjusted_pvalues)
+```
+
+```{r}
+Authors_BH_adjusted_pvalues
+```
+
+```{r}
+write.csv(df, 'myDF.csv')
+
+```
+
+```{r}
+LOC_NChecker_Commits <- vector()
+
+```
+
+```{r}
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  #checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  LOC_Actual <- function_LOC(dataSubSet)
+  LOC_NChecker_Commits <- append(LOC_NChecker_Commits, LOC_Actual)
+ # print("calling boot")
+ # print(i)
+ # bootcorr <- boot(dataSubSet, function_LOC_multiCommit, R=100000, numCommits=checkerNums)
+ # s1 <- "LOC modified per "
+ # s2 <- toString(checkerNums)
+ # s3 <- " commits"
+ # s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+ # list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+ #    main=repoName, xlab = s4)
+ # argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+  
+ # print("Mean")
+ # mean <- mean(bootcorr$t)
+ # print(mean)
+ # meanBootstrappedLOC <- append(meanBootstrappedLOC, mean)
+ # print("LOCActual")
+ # print(LOC_Actual)
+  
+ # P = ecdf(bootcorr$t)
+ # if (LOC_Actual > center){
+ #   pVal <- 1 - P(LOC_Actual)
+ # } else {
+  #  pVal <- P(LOC_Actual)
+  #}
+ # pVal_LOC_Actual <- append(pVal_LOC_Actual, pVal)
+ # print("p-value")
+ # print(pVal)
+ # rm(bootcorr)
+ # rm(dataSubSet)
+ # rm(LOC_Actual)
+ # rm(list_histo)
+ # rm(P)
+ # gc()
+}
+length(LOC_NChecker_Commits)
+```
+
+
+```{r}
+
+meanBootstrappedAuthors <- vector()
+pVal_Authors_Actual <- vector()
+
+```
+
+```{r}
+
+meanBootstrappedCommitters <- vector()
+pVal_Committers_Actual <- vector()
+
+```
+
+Authors
+
+```{r}
+p_values_Authors_unadjusted <- vector()
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  #dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "No",]
+  Authors_Actual <- Authors_NChecker_Commits[[i]]
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_Authors_multiCommit, R=100000, numCommits=checkerNums)
+  #s1 <- "Unique authors per "
+  #s2 <- toString(checkerNums)
+  #s3 <- " commits"
+  #s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+  #list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+   #  main=repoName, xlab = s4)
+ # argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+  
+  #print("Mean")
+  #mean <- mean(bootcorr$t)
+ # print(mean)
+ # meanBootstrappedAuthors <- append(meanBootstrappedAuthors, mean)
+  print("AuthorsActual")
+  print(Authors_Actual)
+  
+  P = ecdf(bootcorr$t)
+ # if (Authors_Actual > center){
+  #  pVal <- 1 - P(Authors_Actual)
+ # } else {
+    pVal <- P(Authors_Actual)
+ # }
+  p_values_Authors_unadjusted <- append(p_values_Authors_unadjusted, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(Authors_Actual)
+  rm(list_histo)
+  rm(P)
+  gc()
+}
+length(p_values_Authors_unadjusted)
+
+
+```
+
+
+Committers
+
+```{r}
+p_values_Committers_unadjusted <- vector()
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "No",]
+  Committers_Actual <- Committers_NChecker_Commits[[i]]
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_Committers_multiCommit, R=100000, numCommits=checkerNums)
+  #s1 <- "Unique committers per "
+ # s2 <- toString(checkerNums)
+ # s3 <- " commits"
+ # s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+ # list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+ #    main=repoName, xlab = s4)
+  #argmax <- which.max(list_histo$counts)
+  #center <- list_histo$mids[[argmax]]
+  
+  #print("Mean")
+  #mean <- mean(bootcorr$t)
+ # print(mean)
+  #meanBootstrappedCommitters <- append(meanBootstrappedCommitters, mean)
+  print("CommittersActual")
+  print(Committers_Actual)
+  
+  P = ecdf(bootcorr$t)
+  #if (Committers_Actual > center){
+  #  pVal <- 1 - P(Committers_Actual)
+ # } else {
+    pVal <- P(Committers_Actual)
+ # }
+  p_values_Committers_unadjusted <- append(p_values_Committers_unadjusted, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(Committers_Actual)
+  #rm(list_histo)
+  rm(P)
+  gc()
+}
+
+
+```
+
+testing
+```{r}
+function_WC_Files <- function(input){
+  #sum = 0
+  #yesCheckers <- data[data$NullCheckers. == "Yes",]
+ # noCheckers <- data[data$NullCheckers. == "No",]
+  
+ # filesYesCheckers <- (yesCheckers$NumFiles)
+  #filesNoCheckers <- (noCheckers$NumFiles)
+  result <- wilcox.test(NumFiles ~ NullCheckers., data=input)
+  
+  #length(subset)
+  #subList <- (subset$Lines.of.Code.Added.or.Removed)
+  #for (i in 1: length(subList)){
+  #  sum = sum + subList[[i]]
+ # }
+  #print("computing LOC")
+  rm(input)
+  #rm(subList)
+  #rm(data)
+  gc()
+  #return(sum)
+}
+```
+
+```{r}
+p_values_Files_unadjusted <- vector()
+```
+
+```{r}
+
+p_values_Files_unadjusted
+```
+
+
+```{r}
+length(repos)
+```
+
+```{r}
+  for (i in 1:length(repos)){
+    repoName = repos[[i]]
+    repoName
+ # checkerNums = commitCheckerNums[[1]]
+    dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  #numsActual <- function_numFiles(dataSubSet)
+  #function_WC_Files(dataSubSet)
+    dataSubSet$NullCheckers. <- factor(dataSubSet$NullCheckers., levels=c("Yes", "No"))
+    #levels(dataSubSet$NullCheckers.)
+  
+    result <- wilcox.test(NumFiles ~ NullCheckers., data = dataSubSet, alternative = c("greater"), paired = FALSE)$p.value
+    #print(result)
+    p_values_Files_unadjusted <- append(p_values_Files_unadjusted, result)
+    rm(dataSubSet)
+    rm(result)
+    gc()
+  #set.seed(10)
+  #bootcorr <- boot(dataSubSet, function_filesTouched_multiCommit, R=10000, numCommits=checkerNums)
+  #dataSubSet
+  #boot
+  #bootcorr
+  #bootcorr <- as.numeric(bootcorr)
+  #hist(bootcorr)
+  #plot(main = "title", bootcorr, index = 1)
+  #s1 <- "Files modified per "
+ # s2 <- toString(checkerNums)
+ # s3 <- " commits"
+ # s4 <- paste(s1, s2, s3, sep="")
+ # s5 <- "Mean: "
+ # print(s5)
+  #mean(bootcorr$t)
+  
+ # t.test(bootcorr$t, mu=0)
+  #list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+  #   main=repoName, xlab = s4)
+  #list_histo
+  #argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+ # P = ecdf(bootcorr$t)
+  
+  #if (numsActual > center){
+  #  pVal <- 1 - P(numsActual)
+  #} else {
+ #   pVal <- P(numsActual)
+ # }
+ # pVal
+  
+  #plot(P)
+  
+  #bootcorr$t
+  #summary(bootcorr)
+  #t
+  }
+length(p_values_Files_unadjusted)
+```
+```{r}
+p_values_LOC_unadjusted <- vector()
+
+```
+
+
+loc
+```{r}
+
+for (i in 1:length(repos)){
+    repoName = repos[[i]]
+    repoName
+ # checkerNums = commitCheckerNums[[1]]
+    dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  #numsActual <- function_numFiles(dataSubSet)
+  #function_WC_Files(dataSubSet)
+    dataSubSet$NullCheckers. <- factor(dataSubSet$NullCheckers., levels=c("Yes", "No"))
+    #levels(dataSubSet$NullCheckers.)
+  
+    result <- wilcox.test(Lines.of.Code.Added.or.Removed ~ NullCheckers., data = dataSubSet, alternative = c("greater"), paired = FALSE)$p.value
+    #print(result)
+    p_values_LOC_unadjusted <- append(p_values_LOC_unadjusted, result)
+    rm(dataSubSet)
+    rm(result)
+    gc()
+}
+length(p_values_LOC_unadjusted)
+
+```
+
+
+```{r}
+Files_BH_adjusted_pvalues <- vector()
+```
+
+```{r}
+
+Files_BH_adjusted_pvalues <-p.adjust(p_values_Files_unadjusted, method = "BH")
+
+```
+
+```{r}
+Authors_BH_adjusted_pvalues <- vector()
+Authors_BH_adjusted_pvalues <- p.adjust(p_values_Authors_unadjusted, method = "BH")
+length(Authors_BH_adjusted_pvalues)
+```
+
+```{r}
+LOC_BH_adjusted_pvalues <- vector()
+LOC_BH_adjusted_pvalues <- p.adjust(p_values_LOC_unadjusted, method = "BH")
+length(LOC_BH_adjusted_pvalues)
+
+```
+
+```{r}
+
+Files_BH_adjusted_pvalues
+```
+```{r}
+install.packages("sgof")
+```
+```{r}
+version
+```
+
+
+```{r}
+ls()
+
+```
+
+```{r}
+ls()
+
+```
+
+```{r}
+
+
+```

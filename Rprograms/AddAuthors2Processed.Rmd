@@ -1,0 +1,808 @@
+```{r}
+install.packages("boot",dep=TRUE)
+install.packages("ggplot2")
+install.packages("pryr")
+install.packages("devtools")
+devtools::install_github("hadley/lineprof")
+```
+
+```{r}
+install.packages("pryr")
+```
+
+```{r}
+install.packages("DescTool")
+```
+
+```{r}
+install.packages("reldist")
+
+```
+
+
+```{r}
+install.packages("gglorenz")
+
+```
+```{r}
+library(gglorenz)
+```
+
+```{r}
+library(reldist)
+```
+
+```{r}
+library(pryr)
+```
+
+
+```{r}
+write.csv(output, 'ginisPerProj.csv')
+```
+
+```{r}
+write.csv(checkerData, 'checkDatwAuthors.csv')
+```
+
+
+```{r}
+install.packages("tidyverse")
+
+```
+
+
+```{r}
+
+library(tidyverse)
+library(boot)
+```
+
+```{r}
+options(max.print=10000000)
+```
+
+read in raw data, we already processed NullTouches using Python
+
+```{r}
+install.packages("readxl")
+
+```
+
+```{r}
+library(readxl)
+```
+
+
+```{r}
+
+checkerData <- read_excel("/Users/matt/eclipse-workspace/02_26_21_projectUpdate/processed.xlsx")
+```
+
+```{r}
+head(checkerData)
+```
+
+
+Make list of repo names.  We will do analysis for each repo.
+
+```{r}
+repos <- unique(checkerData$Project)
+x <- checkerData$`Lines of code`
+y <- checkerData$`Annotations added`
+```
+
+for each repo...
+```{r}
+library(lubridate)
+```
+```{r}
+library(gglorenz)
+```
+```{r}
+authorName <- vector()
+authorEmail <- vector()
+committerName <- vector()
+committerEmail <- vector()
+```
+
+```{r}
+NullTouchesDataFrame <- read.csv("/Users/matt/eclipse-workspace/03_12_21_project_update/Null_Touches.csv")
+```
+
+```{r}
+head(NullTouchesDataFrame)
+```
+
+```{r}
+rm(NullTouchesDataFrame)
+```
+
+
+```{r}
+for(i in 1:length(checkerData$`Commit id`)){
+  
+  commitID = checkerData$`Commit id`[[i]]
+  nullSubSet <- NullTouchesDataFrame[NullTouchesDataFrame$Commit.ID == commitID,]
+  authorName <- append(authorName, nullSubSet$Author.Name[[1]])
+  authorEmail <- append(authorEmail, nullSubSet$Author.Email[[1]])
+  committerName <- append(committerName, nullSubSet$Comitter.Name[[1]])
+  committerEmail <- append(committerEmail, nullSubSet$Commiter.Email[[1]])
+  
+  
+}
+```
+
+```{r}
+
+checkerData <- cbind(checkerData, authorName)
+```
+
+```{r}
+checkerData <- cbind(checkerData, authorEmail)
+```
+
+```{r}
+checkerData <- cbind(checkerData, committerName)
+```
+
+```{r}
+checkerData <- cbind(checkerData, committerEmail)
+```
+
+```{r}
+
+head(checkerData)
+```
+
+```{r}
+nuProcessed <- data
+```
+
+```{r}
+output <- cbind(output, nuColumn)
+
+```
+
+```{r}
+output <- cbind(output, lineNos)
+
+```
+
+
+```{r}
+nuColumn <- vector()
+```
+
+```{r}
+lineNos <- vector()
+
+```
+
+```{r}
+for (i in 1:length(repos)){
+  
+  repoName <- repos[[i]]
+  print(repoName)
+  dataSubSet <- checkerData[checkerData$Project == repoName, ]
+  print(nrow(dataSubSet))
+}
+
+```
+
+```{r}
+###make vectors for new chart
+nuRepos <- vector()
+startDates <- vector()
+endDates <- vector()
+ginis <- vector()
+endLOCs <- vector()
+uniqueAuthors <- vector()
+```
+
+```{r}
+for (i in 1:length(repos)){
+  repoName <- repos[[i]]
+  print(repoName)
+  dataSubSet <- checkerData[checkerData$Project == repoName,]
+  print(nrow(dataSubSet))
+  #gNum <- gini(dataSubSet$`Annotations added`)
+  #nuColumn <- append(nuColumn, gNum)
+  myDates <- vector()
+  for (j in 1:length(dataSubSet$`Annotations added`)){
+    dateString <- substr(dataSubSet$`Commit date`[[j]], 1, 10)
+    myDates <- append(myDates, as.Date(dateString))
+  }
+  #str(myDates)
+  dataSubSet <- cbind(dataSubSet, myDates)
+  dataSubSet <- dataSubSet[order(as.Date(dataSubSet$myDates, format = "%Y-%m-%d")),]
+  ##in date order now
+  startDate <- dataSubSet$myDates[[1]]
+  nuRepos <- append(nuRepos, repoName)
+  startDates <- append(startDates, startDate)
+  allAuthorsForChunk <- vector()
+  allAnnotsForChunk <- vector()
+  diff <- 0
+  for (j in 1:length(dataSubSet$`Annotations added`)){
+    diff <- julian(dataSubSet$myDates[[j]], startDate)
+    print(diff)
+    if (diff > 90){
+      endDates <- append(endDates, dataSubSet$myDates[j-1])
+      startDate <- dataSubSet$myDates[[j]]
+      startDates <- append(startDates, startDate)
+      nuRepos <- append(nuRepos, repoName)
+      giniForChunk <- gini(allAnnotsForChunk)
+      ginis <- append(ginis, giniForChunk)
+      endLOCs <- append(endLOCs, dataSubSet$`Lines of code`[[j-1]])
+      UniqueAuthors <- unique(allAuthorsForChunk)
+      numUniqueAuthors <- length(UniqueAuthors)
+      uniqueAuthors <- append(uniqueAuthors, numUniqueAuthors)
+      ##calculate gini
+     # endLocs <- append(endLocs, dataSubSet$`Lines of code`[[j]])
+      
+      #reset data vectors
+      allAuthorsForChunk <- vector()
+      allAnnotsForChunk <- vector()
+    }   
+    allAuthorsForChunk <- append(allAuthorsForChunk, dataSubSet$authorName[[j]])
+    allAnnotsForChunk <- append(allAnnotsForChunk, dataSubSet$`Annotations added`[[j]])
+  }
+  endDates <- append(endDates, dataSubSet$myDates[[length(dataSubSet$myDates)]])
+  giniForChunk <- gini(allAnnotsForChunk)
+  ginis <- append(ginis, giniForChunk)
+  endLOCs <- append(endLOCs, dataSubSet$`Lines of code`[[length(dataSubSet$`Lines of code`)]])
+  UniqueAuthors <- unique(allAuthorsForChunk)
+  numUniqueAuthors <- length(UniqueAuthors)
+  uniqueAuthors <- append(uniqueAuthors, numUniqueAuthors)
+  
+  
+  #require(ggplot2)
+  #theme_set(theme_bw())
+ # p <- ggplot(myDf, aes(x = myDates, y = cumAnnots)) + geom_line() + geom_point()
+  #p+scale_x_date(date_labels = "%Y-%m-%d")
+  #s1 <- ".png"
+  #s11 <-  str_replace_all(repoName, "([a-zA-Z0-9])/([a-zA-Z0-9])", "\\1\\2")
+  #s2 <- paste(s11, s1, sep = "")
+  #lorenz.curve(dataSubSet$`Annotations added`, main = s2)
+ # ggsave(s2, device = "png")
+  rm(dataSubSet)
+  gc()
+}
+```
+
+```{r}
+
+nuFrame <- data.frame(nuRepos)
+```
+
+```{r}
+nuFrame <- cbind(nuFrame, startDates)
+
+```
+
+```{r}
+nuFrame <- cbind(nuFrame, endDates)
+```
+
+```{r}
+nuFrame <- cbind(nuFrame, ginis)
+```
+
+```{r}
+nuFrame <- cbind(nuFrame, endLOCs)
+```
+
+```{r}
+nuFrame <- cbind(nuFrame, uniqueAuthors)
+```
+
+```{r}
+write.csv(nuFrame, "ginisByMonth.csv")
+```
+
+
+```{r}
+
+head(nuFrame)
+```
+
+```{r}
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  filesActual <- function_numFiles(dataSubSet)
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_filesTouched_multiCommit, R=100000, numCommits=checkerNums)
+  s1 <- "Filesmodifiedper"
+  s2 <- toString(checkerNums)
+  s3 <- "commits"
+  s4 <- paste(s1, s2, s3, sep="")
+  #str_remove(s4, "/")
+  #s5 <- "Median: "
+  s5 <- ".jpeg"
+  s6 <- paste(repoName, s4, s5, sep="")
+  
+  s6 <- str_replace_all(s6, "([a-zA-Z])/([a-zA-Z])", "\\1\\2")
+  s7 <- "jPegs/"
+  s8 <- 
+  print(s6)
+  jpeg(file=s6)
+  
+  list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+     main=repoName, xlab = s4)
+  dev.off()
+  argmax <- which.max(list_histo$counts)
+  center <- list_histo$mids[[argmax]]
+  
+  print("Mean")
+  mean <- mean(bootcorr$t)
+  print(mean)
+  meanBootstrappedFiles <- append(meanBootstrappedFiles, mean)
+  print("filesActual")
+  print(filesActual)
+  
+  P = ecdf(bootcorr$t)
+  if (filesActual > center){
+    pVal <- 1 - P(filesActual)
+  } else {
+    pVal <- P(filesActual)
+  }
+  pValFilesActual <- append(pValFilesActual, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(filesActual)
+  rm(list_histo)
+  rm(P)
+  gc()
+  
+}
+
+```
+
+```{r}
+
+df <-cbind(df, meanBootstrappedFiles)
+df <- cbind(df, pValFilesActual)
+write.csv(df, 'myDF.csv')
+
+```
+
+Replicate bootstrapping for LOC
+
+```{r}
+
+meanBootstrappedLOC <- vector()
+pVal_LOC_Actual <- vector()
+```
+
+LOCs!!
+
+```{r}
+df <- cbind(df, meanBootstrappedLOC)
+```
+
+```{r}
+df <- cbind(df, pVal_LOC_Actual)
+
+```
+
+```{r}
+
+df <- cbind(df, meanBootstrappedAuthors)
+#df <- cbind(df, pVal_Authors_Actual)
+#meanBootstrappedAuthors <- vector()
+#pVal_Authors_Actual <- vector()
+
+```
+
+```{r}
+df <- cbind(df, pVal_Authors_Actual)
+
+```
+
+```{r}
+df <- cbind(df, Committers_NChecker_Commits)
+```
+
+```{r}
+df <- cbind(df, meanBootstrappedCommitters)
+
+```
+
+```{r}
+df <- cbind(df, pVal_Committers_Actual)
+```
+```{r}
+df <- cbind(df, p_values_unadjusted)
+```
+
+```{r}
+df <- cbind(df, p_values_LOC_unadjusted)
+```
+
+```{r}
+
+df <- cbind(df, p_values_Files_unadjusted)
+```
+
+
+```{r}
+df <- cbind(df, Files_BH_adjusted_pvalues)
+
+```
+
+```{r}
+df <- cbind(df, LOC_NChecker_Commits)
+```
+
+```{r}
+df <- cbind(df, LOC_BH_adjusted_pvalues)
+```
+
+```{r}
+df <- cbind(df, p_values_Authors_unadjusted)
+```
+
+```{r}
+df <- cbind(df, Authors_BH_adjusted_pvalues)
+```
+
+```{r}
+df <- cbind(df, p_values_Committers_unadjusted)
+```
+
+
+```{r}
+df <- cbind(df, Committers_BH_adjusted_pvalues)
+```
+
+```{r}
+Authors_BH_adjusted_pvalues
+```
+
+```{r}
+write.csv(df, 'myDF.csv')
+
+```
+
+```{r}
+LOC_NChecker_Commits <- vector()
+
+```
+
+```{r}
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  #checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  LOC_Actual <- function_LOC(dataSubSet)
+  LOC_NChecker_Commits <- append(LOC_NChecker_Commits, LOC_Actual)
+ # print("calling boot")
+ # print(i)
+ # bootcorr <- boot(dataSubSet, function_LOC_multiCommit, R=100000, numCommits=checkerNums)
+ # s1 <- "LOC modified per "
+ # s2 <- toString(checkerNums)
+ # s3 <- " commits"
+ # s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+ # list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+ #    main=repoName, xlab = s4)
+ # argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+  
+ # print("Mean")
+ # mean <- mean(bootcorr$t)
+ # print(mean)
+ # meanBootstrappedLOC <- append(meanBootstrappedLOC, mean)
+ # print("LOCActual")
+ # print(LOC_Actual)
+  
+ # P = ecdf(bootcorr$t)
+ # if (LOC_Actual > center){
+ #   pVal <- 1 - P(LOC_Actual)
+ # } else {
+  #  pVal <- P(LOC_Actual)
+  #}
+ # pVal_LOC_Actual <- append(pVal_LOC_Actual, pVal)
+ # print("p-value")
+ # print(pVal)
+ # rm(bootcorr)
+ # rm(dataSubSet)
+ # rm(LOC_Actual)
+ # rm(list_histo)
+ # rm(P)
+ # gc()
+}
+length(LOC_NChecker_Commits)
+```
+
+
+```{r}
+
+meanBootstrappedAuthors <- vector()
+pVal_Authors_Actual <- vector()
+
+```
+
+```{r}
+
+meanBootstrappedCommitters <- vector()
+pVal_Committers_Actual <- vector()
+
+```
+
+Authors
+
+```{r}
+p_values_Authors_unadjusted <- vector()
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "No",]
+  Authors_Actual <- Authors_NChecker_Commits[[i]]
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_Authors_multiCommit, R=100000, numCommits=checkerNums)
+  s1 <- "Unique authors per "
+  s2 <- toString(checkerNums)
+  s3 <- " commits"
+  s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+  list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+     main=repoName, xlab = s4)
+ # argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+  
+  #print("Mean")
+  #mean <- mean(bootcorr$t)
+ # print(mean)
+ # meanBootstrappedAuthors <- append(meanBootstrappedAuthors, mean)
+  print("AuthorsActual")
+  print(Authors_Actual)
+  
+  P = ecdf(bootcorr$t)
+ # if (Authors_Actual > center){
+  #  pVal <- 1 - P(Authors_Actual)
+ # } else {
+    pVal <- P(Authors_Actual)
+ # }
+  p_values_Authors_unadjusted <- append(p_values_Authors_unadjusted, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(Authors_Actual)
+  rm(list_histo)
+  rm(P)
+  gc()
+}
+length(p_values_Authors_unadjusted)
+
+
+```
+
+
+Committers
+
+```{r}
+p_values_Committers_unadjusted <- vector()
+for (i in 1:length(repos)){
+  repoName = repos[[i]]
+  checkerNums = commitsNullChecker[[i]]
+  dataSubSet <- nullTouches[nullTouches$Repo == repoName & nullTouches$NullCheckers. == "No",]
+  Committers_Actual <- Committers_NChecker_Commits[[i]]
+  print("calling boot")
+  print(i)
+  bootcorr <- boot(dataSubSet, function_Committers_multiCommit, R=100000, numCommits=checkerNums)
+  s1 <- "Unique committers per "
+  s2 <- toString(checkerNums)
+  s3 <- " commits"
+  s4 <- paste(s1, s2, s3, sep="")
+  #s5 <- "Median: "
+  list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+     main=repoName, xlab = s4)
+  #argmax <- which.max(list_histo$counts)
+  #center <- list_histo$mids[[argmax]]
+  
+  #print("Mean")
+  #mean <- mean(bootcorr$t)
+ # print(mean)
+  #meanBootstrappedCommitters <- append(meanBootstrappedCommitters, mean)
+  print("CommittersActual")
+  print(Committers_Actual)
+  
+  P = ecdf(bootcorr$t)
+  #if (Committers_Actual > center){
+  #  pVal <- 1 - P(Committers_Actual)
+ # } else {
+    pVal <- P(Committers_Actual)
+ # }
+  p_values_Committers_unadjusted <- append(p_values_Committers_unadjusted, pVal)
+  print("p-value")
+  print(pVal)
+  rm(bootcorr)
+  rm(dataSubSet)
+  rm(Committers_Actual)
+  rm(list_histo)
+  rm(P)
+  gc()
+}
+
+
+```
+
+testing
+```{r}
+function_WC_Files <- function(input){
+ 
+  result <- wilcox.test(NumFiles ~ NullCheckers., data=input)
+  
+  
+  rm(input)
+ 
+  gc()
+  
+}
+```
+
+```{r}
+p_values_Files_unadjusted <- vector()
+```
+
+```{r}
+
+p_values_Files_unadjusted
+```
+
+
+```{r}
+length(repos)
+```
+
+```{r}
+  for (i in 1:length(repos)){
+    repoName = repos[[i]]
+    repoName
+ # checkerNums = commitCheckerNums[[1]]
+    dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  #numsActual <- function_numFiles(dataSubSet)
+  #function_WC_Files(dataSubSet)
+    dataSubSet$NullCheckers. <- factor(dataSubSet$NullCheckers., levels=c("No", "Yes"))
+    #levels(dataSubSet$NullCheckers.)
+  
+    result <- wilcox.test(NumFiles ~ NullCheckers., data = dataSubSet, paired = FALSE)$p.value
+    #print(result)
+    p_values_Files_unadjusted <- append(p_values_Files_unadjusted, result)
+    rm(dataSubSet)
+    rm(result)
+    gc()
+  #set.seed(10)
+  #bootcorr <- boot(dataSubSet, function_filesTouched_multiCommit, R=10000, numCommits=checkerNums)
+  #dataSubSet
+  #boot
+  #bootcorr
+  #bootcorr <- as.numeric(bootcorr)
+  #hist(bootcorr)
+  #plot(main = "title", bootcorr, index = 1)
+  #s1 <- "Files modified per "
+ # s2 <- toString(checkerNums)
+ # s3 <- " commits"
+ # s4 <- paste(s1, s2, s3, sep="")
+ # s5 <- "Mean: "
+ # print(s5)
+  #mean(bootcorr$t)
+  
+ # t.test(bootcorr$t, mu=0)
+  #list_histo <- hist(bootcorr$t, prob = TRUE, breaks = 50,
+  #   main=repoName, xlab = s4)
+  #list_histo
+  #argmax <- which.max(list_histo$counts)
+ # center <- list_histo$mids[[argmax]]
+ # P = ecdf(bootcorr$t)
+  
+  #if (numsActual > center){
+  #  pVal <- 1 - P(numsActual)
+  #} else {
+ #   pVal <- P(numsActual)
+ # }
+ # pVal
+  
+  #plot(P)
+  
+  #bootcorr$t
+  #summary(bootcorr)
+  #t
+  }
+length(p_values_Files_unadjusted)
+```
+```{r}
+p_values_LOC_unadjusted <- vector()
+
+```
+
+
+loc
+```{r}
+
+for (i in 1:length(repos)){
+    repoName = repos[[i]]
+    repoName
+ # checkerNums = commitCheckerNums[[1]]
+    dataSubSet <- nullTouches[nullTouches$Repo == repoName,]
+  #numsActual <- function_numFiles(dataSubSet)
+  #function_WC_Files(dataSubSet)
+    dataSubSet$NullCheckers. <- factor(dataSubSet$NullCheckers., levels=c("No", "Yes"))
+    #levels(dataSubSet$NullCheckers.)
+  
+    result <- wilcox.test(Lines.of.Code.Added.or.Removed ~ NullCheckers., data = dataSubSet, paired = FALSE)$p.value
+    #print(result)
+    p_values_LOC_unadjusted <- append(p_values_LOC_unadjusted, result)
+    rm(dataSubSet)
+    rm(result)
+    gc()
+}
+length(p_values_LOC_unadjusted)
+
+```
+
+
+```{r}
+Files_BH_adjusted_pvalues <- vector()
+```
+
+```{r}
+
+Files_BH_adjusted_pvalues <-p.adjust(p_values_Files_unadjusted, method = "BH")
+
+```
+
+```{r}
+Authors_BH_adjusted_pvalues <- vector()
+Authors_BH_adjusted_pvalues <- p.adjust(p_values_Authors_unadjusted, method = "BH")
+length(Authors_BH_adjusted_pvalues)
+```
+
+```{r}
+LOC_BH_adjusted_pvalues <- vector()
+LOC_BH_adjusted_pvalues <- p.adjust(p_values_LOC_unadjusted, method = "BH")
+length(LOC_BH_adjusted_pvalues)
+
+```
+
+```{r}
+Committers_BH_adjusted_pvalues <- vector()
+Committers_BH_adjusted_pvalues <- p.adjust(p_values_Committers_unadjusted, method = "BH")
+length(Committers_BH_adjusted_pvalues)
+
+```
+
+```{r}
+
+Files_BH_adjusted_pvalues
+```
+```{r}
+install.packages("sgof")
+```
+```{r}
+version
+```
+
+
+```{r}
+ls()
+
+```
+
+```{r}
+ls()
+
+```
+
+```{r}
+
+
+```
